@@ -1,0 +1,966 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TABOUKA • Prospection Minière & Pétrolière du Mali</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#ffd700;
+  --primary-dark:#b8860b;
+  --primary-glow:rgba(255,215,0,0.4);
+  --secondary:#ff8c00;
+  --bg-deep:#050510;
+  --bg-mid:#0a0a1a;
+  --panel:rgba(10,10,25,0.85);
+  --glass:rgba(255,255,255,0.03);
+  --glass-border:rgba(255,215,0,0.15);
+  --text:#e8e8f0;
+  --text-dim:#8892a8;
+  --danger:#ff2d55;
+  --success:#00ff88;
+  --radius:16px;
+  --transition:0.4s cubic-bezier(0.23,1,0.32,1);
+}
+/* THÈMES PAR RESSOURCE */
+body.theme-or{--primary:#ffd700;--primary-dark:#b8860b;--primary-glow:rgba(255,215,0,0.4);--secondary:#ff8c00;--glass-border:rgba(255,215,0,0.2);}
+body.theme-lithium{--primary:#00e5ff;--primary-dark:#0088aa;--primary-glow:rgba(0,229,255,0.4);--secondary:#00ffcc;--glass-border:rgba(0,229,255,0.2);}
+body.theme-petrole{--primary:#ff4500;--primary-dark:#aa2a00;--primary-glow:rgba(255,69,0,0.4);--secondary:#ffaa00;--glass-border:rgba(255,69,0,0.2);}
+body.theme-eau{--primary:#1e90ff;--primary-dark:#0a5c9e;--primary-glow:rgba(30,144,255,0.4);--secondary:#00d4ff;--glass-border:rgba(30,144,255,0.2);}
+body.theme-uranium{--primary:#00ff88;--primary-dark:#009955;--primary-glow:rgba(0,255,136,0.4);--secondary:#88ff00;--glass-border:rgba(0,255,136,0.2);}
+body.theme-fer{--primary:#c0a080;--primary-dark:#806040;--primary-glow:rgba(192,160,128,0.4);--secondary:#e0b090;--glass-border:rgba(192,160,128,0.2);}
+body.theme-cuivre{--primary:#d2691e;--primary-dark:#8b4513;--primary-glow:rgba(210,105,30,0.4);--secondary:#ff8c42;--glass-border:rgba(210,105,30,0.2);}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--bg-deep);
+  color:var(--text);
+  position:relative;
+  transition:background 0.6s ease;
+}
+/* FOND ANIMÉ */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(circle at 15% 20%, var(--primary-glow) 0%, transparent 45%),
+    radial-gradient(circle at 85% 80%, var(--primary-glow) 0%, transparent 45%),
+    linear-gradient(180deg,var(--bg-deep) 0%,var(--bg-mid) 100%);
+  opacity:0.35;
+  z-index:-2;
+  transition:background 1s ease;
+  animation:pulseBg 12s ease-in-out infinite;
+}
+@keyframes pulseBg{0%,100%{opacity:0.3}50%{opacity:0.5}}
+body::after{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px);
+  background-size:60px 60px;
+  z-index:-1;
+  pointer-events:none;
+}
+
+/* HEADER */
+.header{
+  position:fixed;top:0;left:0;right:0;height:72px;
+  background:rgba(5,5,20,0.75);
+  backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  border-bottom:1px solid var(--glass-border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;z-index:2000;
+  transition:border-color 0.6s ease;
+}
+.header::after{
+  content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--primary),var(--secondary),var(--primary),transparent);
+  opacity:0.8;
+  animation:slideBorder 6s linear infinite;
+  background-size:200% 100%;
+}
+@keyframes slideBorder{0%{background-position:0% 0}100%{background-position:200% 0}}
+.brand{display:flex;align-items:center;gap:16px;}
+.brand-icon{
+  width:42px;height:42px;border-radius:12px;
+  background:linear-gradient(135deg,var(--primary),var(--secondary));
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;
+  box-shadow:0 0 30px var(--primary-glow);
+  transition:all 0.6s ease;
+}
+.brand-text{display:flex;flex-direction:column;line-height:1.1;}
+.brand-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:1.4rem;font-weight:800;letter-spacing:4px;
+  background:linear-gradient(90deg,var(--primary),var(--secondary));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  transition:all 0.6s ease;
+}
+.brand-sub{font-size:0.7rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:16px;}
+.status-pill{
+  display:flex;align-items:center;gap:8px;
+  background:var(--glass);border:1px solid var(--glass-border);
+  padding:8px 16px;border-radius:30px;font-size:0.78rem;
+  transition:all 0.6s ease;
+}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--success);
+  box-shadow:0 0 10px var(--success);
+  animation:blink 2s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.theme-label{color:var(--primary);font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:color 0.6s ease;}
+
+/* SIDEBAR */
+.sidebar{
+  position:fixed;top:72px;left:0;bottom:0;width:290px;
+  background:rgba(5,5,20,0.7);
+  backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);
+  border-right:1px solid var(--glass-border);
+  overflow-y:auto;padding:22px 14px;z-index:1500;
+  transition:border-color 0.6s ease;
+}
+.sidebar::-webkit-scrollbar{width:5px;}
+.sidebar::-webkit-scrollbar-track{background:transparent;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--primary);border-radius:10px;opacity:0.5;}
+.section-title{
+  font-size:0.68rem;color:var(--text-dim);font-weight:700;
+  letter-spacing:2.5px;text-transform:uppercase;
+  margin:20px 8px 10px;padding-left:4px;
+  border-left:3px solid var(--primary);
+  padding-left:10px;transition:border-color 0.6s ease;
+}
+.section-title:first-child{margin-top:0;}
+.nav-btn{
+  width:100%;background:var(--glass);
+  border:1px solid transparent;color:var(--text);
+  padding:12px 14px;border-radius:12px;cursor:pointer;
+  transition:all var(--transition);
+  display:flex;align-items:center;gap:12px;
+  font-size:0.88rem;font-family:inherit;font-weight:500;
+  text-align:left;margin-bottom:5px;position:relative;overflow:hidden;
+}
+.nav-btn::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:0;
+  background:linear-gradient(90deg,var(--primary),transparent);
+  opacity:0.15;transition:width var(--transition);
+}
+.nav-btn:hover::before{width:100%;}
+.nav-btn:hover{
+  border-color:var(--primary);
+  transform:translateX(6px);
+  box-shadow:0 8px 30px var(--primary-glow);
+}
+.nav-btn.active{
+  background:linear-gradient(90deg,var(--primary-glow),transparent);
+  border-color:var(--primary);
+}
+.nav-icon{font-size:1.15rem;width:24px;text-align:center;flex-shrink:0;}
+.nav-label{flex:1;}
+.nav-count{
+  font-size:0.7rem;padding:2px 8px;border-radius:10px;
+  background:var(--primary);color:#000;font-weight:700;
+  transition:background 0.6s ease;
+}
+
+/* CARTE */
+#map-wrap{
+  position:absolute;top:72px;left:290px;right:0;bottom:0;
+  transition:left var(--transition);
+}
+#map{width:100%;height:100%;background:#050510;}
+.leaflet-container{background:#050510 !important;font-family:'Inter',sans-serif;}
+.leaflet-control-zoom{
+  border:1px solid var(--glass-border) !important;
+  border-radius:12px !important;overflow:hidden;
+  box-shadow:0 8px 30px rgba(0,0,0,0.6) !important;
+}
+.leaflet-control-zoom a{
+  background:rgba(10,10,25,0.95) !important;
+  color:var(--primary) !important;
+  border-color:var(--glass-border) !important;
+  width:40px !important;height:40px !important;
+  line-height:40px !important;font-size:1.3rem !important;
+  transition:all 0.3s ease;
+}
+.leaflet-control-zoom a:hover{background:var(--primary) !important;color:#000 !important;}
+.leaflet-popup-content-wrapper{
+  background:rgba(5,5,20,0.95) !important;
+  color:var(--text) !important;
+  border:1px solid var(--primary) !important;
+  border-radius:12px !important;
+  box-shadow:0 15px 50px var(--primary-glow) !important;
+}
+.leaflet-popup-tip{background:var(--primary) !important;}
+
+/* FENÊTRES */
+.window{
+  position:absolute;min-width:480px;max-width:900px;
+  max-height:86vh;
+  background:rgba(5,5,20,0.92);
+  backdrop-filter:blur(35px);-webkit-backdrop-filter:blur(35px);
+  border:1px solid var(--glass-border);
+  border-radius:20px;
+  box-shadow:0 30px 80px rgba(0,0,0,0.8),0 0 60px var(--primary-glow);
+  display:none;overflow:hidden;z-index:500;
+  animation:windowIn 0.4s cubic-bezier(0.23,1,0.32,1);
+}
+@keyframes windowIn{
+  from{opacity:0;transform:scale(0.95) translateY(10px);}
+  to{opacity:1;transform:scale(1) translateY(0);}
+}
+.win-head{
+  padding:16px 22px;
+  background:linear-gradient(90deg,var(--primary-glow),transparent);
+  border-bottom:1px solid var(--glass-border);
+  display:flex;justify-content:space-between;align-items:center;
+  cursor:move;user-select:none;transition:background 0.6s ease;
+}
+.win-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:1rem;font-weight:700;letter-spacing:1px;
+  display:flex;align-items:center;gap:10px;color:var(--primary);
+  transition:color 0.6s ease;
+}
+.win-close{
+  width:34px;height:34px;border-radius:10px;
+  background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.3);
+  color:var(--danger);font-size:1.1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.3s ease;
+}
+.win-close:hover{background:var(--danger);color:#fff;transform:rotate(90deg);}
+.win-body{
+  padding:22px;overflow-y:auto;max-height:calc(86vh - 70px);
+  display:flex;flex-direction:column;gap:18px;
+}
+.win-body::-webkit-scrollbar{width:6px;}
+.win-body::-webkit-scrollbar-thumb{background:var(--primary);border-radius:10px;}
+
+/* CARTES CONTENU */
+.card{
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  border-radius:14px;padding:18px;
+  transition:all 0.4s ease;
+}
+.card:hover{
+  border-color:var(--primary);
+  box-shadow:0 10px 40px var(--primary-glow);
+  transform:translateY(-2px);
+}
+.card-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:0.95rem;font-weight:700;color:var(--primary);
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+  transition:color 0.6s ease;
+}
+.card-alert{
+  background:rgba(255,45,85,0.08);
+  border-left:4px solid var(--danger);
+  padding:14px 18px;border-radius:12px;
+  font-size:0.88rem;line-height:1.6;
+}
+.card-success{
+  background:rgba(0,255,136,0.08);
+  border-left:4px solid var(--success);
+  padding:14px 18px;border-radius:12px;
+  font-size:0.88rem;line-height:1.6;
+}
+
+/* TABLEAUX */
+table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+th{
+  color:var(--primary);text-align:left;
+  padding:10px 6px;font-weight:700;letter-spacing:0.5px;
+  border-bottom:2px solid var(--glass-border);
+  font-size:0.75rem;text-transform:uppercase;
+  transition:color 0.6s ease;
+}
+td{padding:10px 6px;border-bottom:1px solid rgba(255,255,255,0.04);}
+tr:hover td{background:var(--glass);}
+.badge{
+  display:inline-block;padding:3px 10px;border-radius:12px;
+  font-size:0.7rem;font-weight:700;letter-spacing:0.5px;
+}
+.badge-active{background:rgba(0,255,136,0.15);color:var(--success);}
+.badge-alert{background:rgba(255,45,85,0.15);color:var(--danger);}
+.badge-warn{background:rgba(255,215,0,0.15);color:var(--primary);}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+.stat-box{
+  background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:12px;padding:16px;text-align:center;
+  transition:all 0.4s ease;
+}
+.stat-box:hover{border-color:var(--primary);transform:translateY(-3px);}
+.stat-value{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:1.6rem;font-weight:800;color:var(--primary);
+  line-height:1;margin-bottom:6px;transition:color 0.6s ease;
+}
+.stat-label{font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;}
+
+canvas{max-width:100%;border-radius:10px;}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{width:260px;transform:translateX(-100%);transition:transform 0.4s;}
+  .sidebar.open{transform:translateX(0);}
+  #map-wrap{left:0;}
+  .window{min-width:0;max-width:95vw;left:2.5vw !important;top:84px !important;width:95vw !important;}
+  .brand-title{font-size:1.1rem;letter-spacing:2px;}
+  .header{padding:0 14px;}
+  .header-right .status-pill:first-child{display:none;}
+  .menu-toggle{display:flex;}
+}
+.menu-toggle{display:none;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid var(--glass-border);border-radius:10px;background:var(--glass);color:var(--primary);font-size:1.2rem;cursor:pointer;}
+.sidebar-backdrop{display:none;position:fixed;inset:72px 0 0;background:rgba(0,0,0,0.45);z-index:1400;}
+.sidebar-backdrop.visible{display:block;}
+</style>
+</head>
+<body class="theme-or">
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-controls="sidebar" aria-expanded="false">☰</button>
+    <div class="brand-icon">⛏️</div>
+    <div class="brand-text">
+      <div class="brand-title">TABOUKA</div>
+      <div class="brand-sub">Prospection Minière & Pétrolière</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span>Mali • 2026</span>
+    </div>
+    <div class="status-pill">
+      <span class="theme-label" id="themeName">OR</span>
+    </div>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="section-title">Ressources Stratégiques</div>
+  <button class="nav-btn" onclick="openModule('or')">
+    <span class="nav-icon">💰</span><span class="nav-label">Or</span>
+    <span class="nav-count">13</span>
+  </button>
+  <button class="nav-btn" onclick="openModule('lithium')">
+    <span class="nav-icon">🔋</span><span class="nav-label">Lithium</span>
+    <span class="nav-count">2</span>
+  </button>
+  <button class="nav-btn" onclick="openModule('petrole')">
+    <span class="nav-icon">🛢️</span><span class="nav-label">Pétrole</span>
+    <span class="nav-count">1</span>
+  </button>
+  <button class="nav-btn" onclick="openModule('eau')">
+    <span class="nav-icon">💧</span><span class="nav-label">Eau souterraine</span>
+    <span class="nav-count">3</span>
+  </button>
+  <button class="nav-btn" onclick="openModule('uranium')">
+    <span class="nav-icon">☢️</span><span class="nav-label">Uranium</span>
+    <span class="nav-count">1</span>
+  </button>
+  <button class="nav-btn" onclick="openModule('fer')">
+    <span class="nav-icon">⚙️</span><span class="nav-label">Fer & Manganèse</span>
+    <span class="nav-count">2</span>
+  </button>
+  <button class="nav-btn" onclick="openModule('cuivre')">
+    <span class="nav-icon">🥉</span><span class="nav-label">Cuivre & Argent</span>
+    <span class="nav-count">1</span>
+  </button>
+
+  <div class="section-title">Analyse Scientifique</div>
+  <button class="nav-btn" onclick="openWindow('geologie-window')">
+    <span class="nav-icon">🗺️</span><span class="nav-label">Carte Géologique</span>
+  </button>
+  <button class="nav-btn" onclick="openWindow('satellite-window')">
+    <span class="nav-icon">🛰️</span><span class="nav-label">Imagerie Satellite</span>
+  </button>
+  <button class="nav-btn" onclick="openWindow('geophysique-window')">
+    <span class="nav-icon">📡</span><span class="nav-label">Géophysique</span>
+  </button>
+  <button class="nav-btn" onclick="openWindow('modelisation-window')">
+    <span class="nav-icon">🧊</span><span class="nav-label">Modélisation 3D</span>
+  </button>
+  <button class="nav-btn" onclick="openWindow('petrolier-window')">
+    <span class="nav-icon">🛢️</span><span class="nav-label">Système Pétrolier</span>
+  </button>
+</nav>
+<div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
+<!-- CARTE -->
+<div id="map-wrap"><div id="map"></div></div><!-- ============ MODULE OR ============ -->
+<div id="or-window" class="window" style="top:90px;left:320px;width:820px;">
+  <div class="win-head" onmousedown="startDrag(event,'or-window')">
+    <div class="win-title">💰 OR — Gisements Aurifères du Mali</div>
+    <button class="win-close" onclick="closeWindow('or-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-value">60 t</div><div class="stat-label">Production 2026</div></div>
+      <div class="stat-box"><div class="stat-value">50+ Moz</div><div class="stat-label">Réserves totales</div></div>
+      <div class="stat-box"><div class="stat-value">2,5 Md$</div><div class="stat-label">Export annuel</div></div>
+      <div class="stat-box"><div class="stat-value">9,2%</div><div class="stat-label">Part PIB</div></div>
+    </div>
+    <div class="card"><canvas id="or-chart1" height="180"></canvas></div>
+    <div class="card">
+      <div class="card-title">🏆 Principaux gisements</div>
+      <table>
+        <tr><th>Site</th><th>Région</th><th>Production</th><th>Réserves</th><th>Opérateur</th></tr>
+        <tr><td>Loulo-Gounkoto</td><td>Kayes</td><td>23 t/an</td><td>8,2 Moz</td><td>Barrick Gold</td></tr>
+        <tr><td>Fekola</td><td>Kayes</td><td>17 t/an</td><td>5,1 Moz</td><td>B2Gold</td></tr>
+        <tr><td>Syama</td><td>Sikasso</td><td>7 t/an</td><td>3,2 Moz</td><td>Resolute</td></tr>
+        <tr><td>Sadiola</td><td>Kayes</td><td>4 t/an</td><td>2,1 Moz</td><td>AngloGold</td></tr>
+        <tr><td>Kodieran</td><td>Koulikoro</td><td>2,5 t/an</td><td>1,8 Moz</td><td>Wassoul'Or</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">🔬 Géologie de la Ceinture de Kédougou-Kéniéba</div>
+      <p style="font-size:0.85rem;line-height:1.7;color:#c8d0e0;">
+        Âge : Protérozoïque (2,1 Ga). Roches : roches vertes, granitoïdes, filons de quartz aurifère.<br>
+        Type de gisement : or orogénique, contrôlé par des zones de cisaillement.<br>
+        Teneur moyenne : 2 à 4 g/t. Profondeur : jusqu'à 900 m (puits Yalea).
+      </p>
+    </div>
+    <div class="card-alert">
+      ⚠️ <b>Alerte :</strong> Écart de 8 tonnes entre production déclarée (60t) et export enregistré (52t) en 2026. Enquête ITIE en cours.
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODULE LITHIUM ============ -->
+<div id="lithium-window" class="window" style="top:100px;left:340px;width:820px;">
+  <div class="win-head" onmousedown="startDrag(event,'lithium-window')">
+    <div class="win-title">🔋 LITHIUM — Le Métal du Futur</div>
+    <button class="win-close" onclick="closeWindow('lithium-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-value">62 Mt</div><div class="stat-label">Réserves identifiées</div></div>
+      <div class="stat-box"><div class="stat-value">0,85 Mt</div><div class="stat-label">Production 2026</div></div>
+      <div class="stat-box"><div class="stat-value">1er</div><div class="stat-label">Rang africain</div></div>
+      <div class="stat-box"><div class="stat-value">3ème</div><div class="stat-label">Rang mondial (potentiel)</div></div>
+    </div>
+    <div class="card"><canvas id="lithium-chart1" height="180"></canvas></div>
+    <div class="card">
+      <div class="card-title">⚡ Gisements actifs</div>
+      <table>
+        <tr><th>Site</th><th>Région</th><th>Production</th><th>Réserves</th><th>Opérateur</th></tr>
+        <tr><td>Goulamina</td><td>Bougouni</td><td>0,7 Mt/an</td><td>50 Mt</td><td>Ganfeng</td></tr>
+        <tr><td>Bougouni</td><td>Bougouni</td><td>0,15 Mt/an</td><td>12 Mt</td><td>Kodal Minerals</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">🔬 Géologie des pegmatites à lithium</div>
+      <p style="font-size:0.85rem;line-height:1.7;color:#c8d0e0;">
+        Type : pegmatites granitiques à spodumène, lépidolite.<br>
+        Teneur : 1,2 à 1,4% Li₂O.<br>
+        Contexte : ceinture de roches vertes, zones de cisaillement.<br>
+        Valeur marchande : ~40 000 $/tonne de carbonate de lithium.
+      </p>
+    </div>
+    <div class="card-success">
+      ✅ Le Mali est en passe de devenir le <b>1er producteur africain de lithium</b>, devant le Zimbabwe et la RDC.
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODULE PÉTROLE ============ -->
+<div id="petrole-window" class="window" style="top:90px;left:320px;width:850px;">
+  <div class="win-head" onmousedown="startDrag(event,'petrole-window')">
+    <div class="win-title">🛢️ PÉTROLE — Le Trésor Caché de Taoudeni</div>
+    <button class="win-close" onclick="closeWindow('petrole-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-value">1M km²</div><div class="stat-label">Superficie du bassin</div></div>
+      <div class="stat-box"><div class="stat-value">100-500 M</div><div class="stat-label">Barils potentiels</div></div>
+      <div class="stat-box"><div class="stat-value">600-1500 m</div><div class="stat-label">Profondeur roche-mère</div></div>
+      <div class="stat-box"><div class="stat-value">3</div><div class="stat-label">Forages réalisés</div></div>
+    </div>
+    <div class="card"><canvas id="petrole-chart1" height="200"></canvas></div>
+    <div class="card">
+      <div class="card-title">🎯 Système pétrolier de Taoudeni</div>
+      <table>
+        <tr><th>Élément</th><th>Formation</th><th>Âge</th><th>Profondeur</th></tr>
+        <tr><td>Roche-mère</td><td>Argiles noires du Silurien</td><td>430 Ma</td><td>600-1 500 m</td></tr>
+        <tr><td>Réservoir</td><td>Grès du Dévonien</td><td>380 Ma</td><td>300-1 200 m</td></tr>
+        <tr><td>Couverture</td><td>Argiles du Dévonien sup.</td><td>360 Ma</td><td>0-800 m</td></tr>
+        <tr><td>Piège</td><td>Structures anticlinales</td><td>—</td><td>—</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">📍 Forages d'exploration</div>
+      <table>
+        <tr><th>Forage</th><th>Année</th><th>Profondeur</th><th>Résultat</th></tr>
+        <tr><td>TTD-1</td><td>2015</td><td>2 500 m</td><td>Indices de gaz</td></tr>
+        <tr><td>TTD-2</td><td>2017</td><td>3 000 m</td><td>Non publié</td></tr>
+        <tr><td>TTD-3</td><td>2019</td><td>2 800 m</td><td>Non publié</td></tr>
+      </table>
+    </div>
+    <div class="card-alert">
+      ⚠️ <b>TotalEnergies a suspendu ses forages en 2020.</b> Les résultats n'ont jamais été rendus publics. Le Mali doit exiger la transparence sur ces données.
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODULE EAU ============ -->
+<div id="eau-window" class="window" style="top:90px;left:320px;width:820px;">
+  <div class="win-head" onmousedown="startDrag(event,'eau-window')">
+    <div class="win-title">💧 EAU — L'Or Bleu du Sahel</div>
+    <button class="win-close" onclick="closeWindow('eau-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-value">-17%</div><div class="stat-label">Débit Niger</div></div>
+      <div class="stat-box"><div class="stat-value">-18%</div><div class="stat-label">Nappe Tombouctou</div></div>
+      <div class="stat-box"><div class="stat-value">1,1M</div><div class="stat-label">En insécurité alimentaire</div></div>
+      <div class="stat-box"><div class="stat-value">70%</div><div class="stat-label">Accès eau potable</div></div>
+    </div>
+    <div class="card"><canvas id="eau-chart1" height="200"></canvas></div>
+    <div class="card">
+      <div class="card-title">🌊 Niveau des nappes phréatiques (2026)</div>
+      <table>
+        <tr><th>Région</th><th>Variation</th><th>Statut</th></tr>
+        <tr><td>Kayes</td><td>Stable</td><td><span class="badge badge-active">Normal</span></td></tr>
+        <tr><td>Koulikoro</td><td>-2%</td><td><span class="badge badge-warn">Vigilance</span></td></tr>
+        <tr><td>Ségou</td><td>-5%</td><td><span class="badge badge-warn">Vigilance</span></td></tr>
+        <tr><td>Mopti</td><td>-8%</td><td><span class="badge badge-alert">Alerte</span></td></tr>
+        <tr><td>Gao</td><td>-15%</td><td><span class="badge badge-alert">Critique</span></td></tr>
+        <tr><td>Tombouctou</td><td>-18%</td><td><span class="badge badge-alert">Critique</span></td></tr>
+      </table>
+    </div>
+    <div class="card-alert">
+      ⚠️ <b>Déficit pluviométrique :</b> -12% en 2026. 12 conflits éleveurs-agriculteurs recensés (Mopti, Gao).
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODULE URANIUM ============ -->
+<div id="uranium-window" class="window" style="top:90px;left:320px;width:820px;">
+  <div class="win-head" onmousedown="startDrag(event,'uranium-window')">
+    <div class="win-title">☢️ URANIUM — Falea, le Gisement Oublié</div>
+    <button class="win-close" onclick="closeWindow('uranium-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-value">5 000 t</div><div class="stat-label">Réserves uranium</div></div>
+      <div class="stat-box"><div class="stat-value">50 000 t</div><div class="stat-label">Cuivre</div></div>
+      <div class="stat-box"><div class="stat-value">5 Moz</div><div class="stat-label">Argent</div></div>
+      <div class="stat-box"><div class="stat-value">0,1%</div><div class="stat-label">Teneur U</div></div>
+    </div>
+    <div class="card"><canvas id="uranium-chart1" height="180"></canvas></div>
+    <div class="card">
+      <div class="card-title">📍 Gisement de Falea</div>
+      <p style="font-size:0.85rem;line-height:1.7;color:#c8d0e0;">
+        Localisation : Région de Kayes, près de la frontière sénégalaise.<br>
+        Roches : grès, conglomérats du Protérozoïque.<br>
+        Minéraux : uraninite, coffinite.<br>
+        Opérateur : Rockgate Capital.<br>
+        Statut : exploration suspendue depuis 2021.
+      </p>
+    </div>
+    <div class="card-success">
+      ✅ Potentiel : 20 000 tonnes d'uranium si les explorations reprennent. Le Mali pourrait devenir un acteur nucléaire civil régional.
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODULE FER ============ -->
+<div id="fer-window" class="window" style="top:90px;left:320px;width:820px;">
+  <div class="win-head" onmousedown="startDrag(event,'fer-window')">
+    <div class="win-title">⚙️ FER & MANGANÈSE — La Base Industrielle</div>
+    <button class="win-close" onclick="closeWindow('fer-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-value">500 Mt</div><div class="stat-label">Fer (Bafing)</div></div>
+      <div class="stat-box"><div class="stat-value">10 Mt</div><div class="stat-label">Manganèse (Ansongo)</div></div>
+      <div class="stat-box"><div class="stat-value">55%</div><div class="stat-label">Teneur Fe</div></div>
+      <div class="stat-box"><div class="stat-value">45%</div><div class="stat-label">Teneur Mn</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">⚙️ Gisements identifiés</div>
+      <table>
+        <tr><th>Site</th><th>Région</th><th>Ressource</th><th>Réserves</th></tr>
+        <tr><td>Bafing</td><td>Kayes</td><td>Fer</td><td>500 Mt</td></tr>
+        <tr><td>Ansongo</td><td>Gao</td><td>Manganèse</td><td>10 Mt</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODULE CUIVRE ============ -->
+<div id="cuivre-window" class="window" style="top:90px;left:320px;width:820px;">
+  <div class="win-head" onmousedown="startDrag(event,'cuivre-window')">
+    <div class="win-title">🥉 CUIVRE & ARGENT — Le Potentiel Caché</div>
+    <button class="win-close" onclick="closeWindow('cuivre-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-value">50 000 t</div><div class="stat-label">Cuivre (Falea)</div></div>
+      <div class="stat-box"><div class="stat-value">5 Moz</div><div class="stat-label">Argent</div></div>
+      <div class="stat-box"><div class="stat-value">Non exploité</div><div class="stat-label">Statut actuel</div></div>
+      <div class="stat-box"><div class="stat-value">Potentiel</div><div class="stat-label">Valeur stratégique</div></div>
+    </div>
+    <div class="card-success">
+      ✅ Le gisement de Falea contient du cuivre et de l'argent en plus de l'uranium. Une mine poly-métallique pourrait être rentable même avec un prix bas de l'uranium.
+    </div>
+  </div>
+</div>
+
+<!-- ============ FENÊTRE GÉOLOGIE ============ -->
+<div id="geologie-window" class="window" style="top:90px;left:320px;width:850px;">
+  <div class="win-head" onmousedown="startDrag(event,'geologie-window')">
+    <div class="win-title">🗺️ CARTE GÉOLOGIQUE DU MALI</div>
+    <button class="win-close" onclick="closeWindow('geologie-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="card">
+      <div class="card-title">🏔️ Grandes unités géologiques</div>
+      <table>
+        <tr><th>Unité</th><th>Âge</th><th>Ressources</th></tr>
+        <tr><td>Bouclier de Man</td><td>Archéen (3 Ga)</td><td>Or, fer, manganèse</td></tr>
+        <tr><td>Ceinture Kédougou-Kéniéba</td><td>Protérozoïque (2,1 Ga)</td><td>Or</td></tr>
+        <tr><td>Bassin de Taoudeni</td><td>Protérozoïque-Paléozoïque</td><td>Pétrole, phosphate</td></tr>
+        <tr><td>Bassin de Gao</td><td>Paléozoïque-Cénozoïque</td><td>Uranium, cuivre</td></tr>
+        <tr><td>Socle de Kidal</td><td>Protérozoïque</td><td>Terres rares</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FENÊTRE SATELLITE ============ -->
+<div id="satellite-window" class="window" style="top:90px;left:320px;width:850px;">
+  <div class="win-head" onmousedown="startDrag(event,'satellite-window')">
+    <div class="win-title">🛰️ IMAGERIE SATELLITE & TÉLÉDÉTECTION</div>
+    <button class="win-close" onclick="closeWindow('satellite-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="card"><canvas id="sat-chart1" height="180"></canvas></div>
+    <div class="card">
+      <div class="card-title">🛰️ Satellites utilisés</div>
+      <table>
+        <tr><th>Satellite</th><th>Résolution</th><th>Fréquence</th></tr>
+        <tr><td>Sentinel-2 (ESA)</td><td>10 m</td><td>5 jours</td></tr>
+        <tr><td>Sentinel-1 (Radar)</td><td>10 m</td><td>6 jours</td></tr>
+        <tr><td>Landsat 8/9 (NASA)</td><td>15-30 m</td><td>8 jours</td></tr>
+        <tr><td>ASTER</td><td>15-90 m</td><td>16 jours</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FENÊTRE GÉOPHYSIQUE ============ -->
+<div id="geophysique-window" class="window" style="top:90px;left:320px;width:850px;">
+  <div class="win-head" onmousedown="startDrag(event,'geophysique-window')">
+    <div class="win-title">📡 GÉOPHYSIQUE — Voir sous la Terre</div>
+    <button class="win-close" onclick="closeWindow('geophysique-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="card"><canvas id="geo-chart1" height="200"></canvas></div>
+    <div class="card">
+      <div class="card-title">📡 Méthodes disponibles</div>
+      <table>
+        <tr><th>Méthode</th><th>Profondeur</th><th>Utilité</th></tr>
+        <tr><td>Gravimétrie</td><td>0-50 km</td><td>Bassins, structures</td></tr>
+        <tr><td>Magnétométrie</td><td>0-20 km</td><td>Minerais, failles</td></tr>
+        <tr><td>Sismique réflexion</td><td>0-10 km</td><td>Pétrole</td></tr>
+        <tr><td>Électrique</td><td>0-500 m</td><td>Eau, sulfures</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FENÊTRE MODÉLISATION ============ -->
+<div id="modelisation-window" class="window" style="top:90px;left:320px;width:850px;">
+  <div class="win-head" onmousedown="startDrag(event,'modelisation-window')">
+    <div class="win-title">🧊 MODÉLISATION 3D — Tombouctou → Taoudeni</div>
+    <button class="win-close" onclick="closeWindow('modelisation-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="card"><canvas id="mod-chart1" height="220"></canvas></div>
+    <div class="card">
+      <div class="card-title">📊 Profondeurs estimées</div>
+      <table>
+        <tr><th>Limite</th><th>Tombouctou</th><th>Taoudeni</th></tr>
+        <tr><td>Fin Dévonien</td><td>~100 m</td><td>~300 m</td></tr>
+        <tr><td>Silurien</td><td>~600 m</td><td>~1 200 m</td></tr>
+        <tr><td>Protérozoïque</td><td>~800 m</td><td>~1 500 m</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FENÊTRE SYSTÈME PÉTROLIER ============ -->
+<div id="petrolier-window" class="window" style="top:90px;left:320px;width:850px;">
+  <div class="win-head" onmousedown="startDrag(event,'petrolier-window')">
+    <div class="win-title">🛢️ SYSTÈME PÉTROLIER — Analyse Technique</div>
+    <button class="win-close" onclick="closeWindow('petrolier-window')">✕</button>
+  </div>
+  <div class="win-body">
+    <div class="card"><canvas id="pet-chart1" height="200"></canvas></div>
+    <div class="card">
+      <div class="card-title">📍 Zones prometteuses</div>
+      <ul style="font-size:0.88rem;line-height:1.9;padding-left:20px;">
+        <li>Axe Taoudeni-Araouane : anticlinaux potentiels</li>
+        <li>Dômes de sel : structures circulaires détectées</li>
+        <li>Marge nord : équivalent des champs mauritaniens</li>
+      </ul>
+    </div>
+  </div>
+</div><script>
+// ============ CARTE ============
+const map = L.map('map',{center:[17.5,-4],zoom:6,minZoom:5,maxZoom:14,zoomControl:true});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'TABOUKA | CartoDB',maxZoom:19
+}).addTo(map);
+
+// ============ ICÔNES ============
+const icons = {
+  or: L.divIcon({html:'<div style="background:#ffd700;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 15px #ffd700;"></div>',iconSize:[16,16]}),
+  lithium: L.divIcon({html:'<div style="background:#00e5ff;width:16px;height:16px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 15px #00e5ff;"></div>',iconSize:[16,16]}),
+  petrole: L.divIcon({html:'<div style="background:#ff4500;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 15px #ff4500;"></div>',iconSize:[16,16]}),
+  eau: L.divIcon({html:'<div style="background:#1e90ff;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 15px #1e90ff;"></div>',iconSize:[16,16]}),
+  uranium: L.divIcon({html:'<div style="background:#00ff88;width:16px;height:16px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 15px #00ff88;"></div>',iconSize:[16,16]}),
+  fer: L.divIcon({html:'<div style="background:#c0a080;width:16px;height:16px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 15px #c0a080;"></div>',iconSize:[16,16]}),
+  cuivre: L.divIcon({html:'<div style="background:#d2691e;width:16px;height:16px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 15px #d2691e;"></div>',iconSize:[16,16]})
+};
+
+// ============ DONNÉES ============
+const data = {
+  or:[
+    {n:"Loulo-Gounkoto",lat:13.33,lng:-9.42,d:"23 t/an • 8,2 Moz"},
+    {n:"Fekola",lat:13.02,lng:-10.28,d:"17 t/an • 5,1 Moz"},
+    {n:"Syama",lat:11.28,lng:-6.92,d:"7 t/an • 3,2 Moz"},
+    {n:"Sadiola",lat:13.82,lng:-9.78,d:"4 t/an • 2,1 Moz"},
+    {n:"Kodieran",lat:11.80,lng:-8.20,d:"2,5 t/an • 1,8 Moz"}
+  ],
+  lithium:[
+    {n:"Goulamina",lat:12.35,lng:-7.88,d:"0,7 Mt/an • 50 Mt"},
+    {n:"Bougouni",lat:11.48,lng:-7.55,d:"0,15 Mt/an • 12 Mt"}
+  ],
+  petrole:[
+    {n:"Bassin de Taoudeni",lat:22.67,lng:-3.98,d:"100-500 M barils"}
+  ],
+  eau:[
+    {n:"Bamako",lat:12.63,lng:-7.99,d:"Forage 120 m"},
+    {n:"Office du Niger",lat:14.00,lng:-6.00,d:"Forage 80 m"},
+    {n:"Tombouctou",lat:16.77,lng:-3.00,d:"Forage 150 m"}
+  ],
+  uranium:[
+    {n:"Falea",lat:12.20,lng:-9.50,d:"5 000 t U + Cu + Ag"}
+  ],
+  fer:[
+    {n:"Bafing",lat:13.50,lng:-10.50,d:"500 Mt Fer"},
+    {n:"Ansongo",lat:15.65,lng:0.50,d:"10 Mt Manganèse"}
+  ],
+  cuivre:[
+    {n:"Falea (Cu-Ag)",lat:12.20,lng:-9.50,d:"50 000 t Cu • 5 Moz Ag"}
+  ]
+};
+
+const resourceLayer = L.layerGroup().addTo(map);
+
+// ============ THÈMES ============
+const themeNames = {or:"OR",lithium:"LITHIUM",petrole:"PÉTROLE",eau:"EAU",uranium:"URANIUM",fer:"FER",cuivre:"CUIVRE"};
+
+function applyTheme(theme){
+  document.body.className = 'theme-' + theme;
+  document.getElementById('themeName').textContent = themeNames[theme] || themeNames.or;
+  document.querySelectorAll('.nav-btn').forEach(button=>{
+    button.classList.toggle('active', button.getAttribute('onclick') === `openModule('${theme}')`);
+  });
+}
+
+// ============ AFFICHER RESSOURCE ============
+function openModule(type){
+  applyTheme(type);
+  closeSidebar();
+  resourceLayer.clearLayers();
+  const items = data[type];
+  if(items){
+    items.forEach(item=>{
+      L.marker([item.lat,item.lng],{icon:icons[type]})
+        .bindPopup(`<b style="color:var(--primary);">${item.n}</b><br>${item.d}`)
+        .addTo(resourceLayer);
+    });
+    // Zoom sur le premier gisement
+    if(items.length>0){
+      map.flyTo([items[0].lat,items[0].lng],7,{duration:1.5});
+    }
+  }
+  // Ouvrir la fenêtre correspondante
+  const winId = type + '-window';
+  openWindow(winId);
+  // Fermer les autres fenêtres
+  document.querySelectorAll('.window').forEach(w=>{
+    if(w.id !== winId) w.style.display='none';
+  });
+}
+
+// ============ GESTION FENÊTRES ============
+let dragEl = null, dragX = 0, dragY = 0, topZ = 500;
+
+function startDrag(e,id){
+  if(e.target.closest('.win-close'))return;
+  dragEl = document.getElementById(id);
+  const r = dragEl.getBoundingClientRect();
+  dragX = e.clientX - r.left;
+  dragY = e.clientY - r.top;
+  document.addEventListener('mousemove',onDrag);
+  document.addEventListener('mouseup',stopDrag);
+  topZ++;dragEl.style.zIndex = topZ;
+  e.preventDefault();
+}
+
+function onDrag(e){
+  if(!dragEl)return;
+  const maxX = window.innerWidth - dragEl.offsetWidth - 10;
+  const maxY = window.innerHeight - 60;
+  const minX = window.innerWidth <= 768 ? 10 : 290;
+  dragEl.style.left = Math.min(maxX,Math.max(minX,e.clientX - dragX)) + 'px';
+  dragEl.style.top = Math.min(maxY,Math.max(80,e.clientY - dragY)) + 'px';
+}
+
+function stopDrag(){
+  document.removeEventListener('mousemove',onDrag);
+  document.removeEventListener('mouseup',stopDrag);
+  dragEl = null;
+}
+
+const chartsInit = {};
+
+function openWindow(id){
+  const w = document.getElementById(id);
+  if(!w)return;
+  w.style.display = 'block';
+  topZ++;w.style.zIndex = topZ;
+  if(!chartsInit[id]){
+    initChart(id);
+    chartsInit[id] = true;
+  }
+}
+
+function closeWindow(id){
+  const w = document.getElementById(id);
+  if(w) w.style.display = 'none';
+}
+
+function closeSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.getElementById('menuToggle');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  sidebar.classList.remove('open');
+  backdrop.classList.remove('visible');
+  toggle.setAttribute('aria-expanded','false');
+}
+
+function toggleSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.getElementById('menuToggle');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  const isOpen = sidebar.classList.toggle('open');
+  backdrop.classList.toggle('visible',isOpen);
+  toggle.setAttribute('aria-expanded',String(isOpen));
+}
+
+// ============ GRAPHIQUES ============
+function initChart(id){
+  const configs = {
+    'or-window':{el:'or-chart1',type:'bar',labels:['2022','2023','2024','2025','2026'],data:[65,66,52,58,62],color:'#ffd700',label:'Production Or (t)'},
+    'lithium-window':{el:'lithium-chart1',type:'doughnut',labels:['Goulamina','Bougouni'],data:[85,15],color:['#00e5ff','#00ffcc'],label:'Répartition production'},
+    'petrole-window':{el:'petrole-chart1',type:'line',labels:['Quaternaire','Dévonien sup.','Dévonien moy.','Dévonien inf.','Silurien','Protérozoïque'],data:[30,100,250,500,800,1500],color:'#ff4500',label:'Profondeur (m)'},
+    'eau-window':{el:'eau-chart1',type:'bar',labels:['Kayes','Koulikoro','Ségou','Mopti','Gao','Tombouctou'],data:[0,-2,-5,-8,-15,-18],color:'#1e90ff',label:'Variation nappes (%)'},
+    'uranium-window':{el:'uranium-chart1',type:'bar',labels:['Uranium','Cuivre','Argent'],data:[5000,50000,5000000],color:'#00ff88',label:'Réserves (unité variable)'},
+    'satellite-window':{el:'sat-chart1',type:'radar',labels:['Optique','Radar','Thermal','Multispectral','Hyperspectral'],data:[95,80,60,75,40],color:'#ffd700',label:'Couverture satellite (%)'},
+    'geophysique-window':{el:'geo-chart1',type:'radar',labels:['Gravimétrie','Magnétométrie','Sismique','Électrique','MT'],data:[40,30,20,50,10],color:'#ffd700',label:'Couverture Mali (%)'},
+    'modelisation-window':{el:'mod-chart1',type:'line',labels:['Tombouctou','Araouane','Taoudeni'],data:[800,1100,1500],color:'#8e44ad',label:'Protérozoïque (m)'},
+    'petrolier-window':{el:'pet-chart1',type:'line',labels:['Quaternaire','Dévonien','Silurien','Ordovicien','Protérozoïque'],data:[30,400,900,1100,1500],color:'#ff4500',label:'Profondeur (m)'}
+  };
+  const c = configs[id];
+  if(!c)return;
+  const canvas = document.getElementById(c.el);
+  if(!canvas)return;
+  const ctx = canvas.getContext('2d');
+  const isDoughnut = c.type === 'doughnut';
+  const isRadar = c.type === 'radar';
+  new Chart(ctx,{
+    type:c.type,
+    data:{
+      labels:c.labels,
+      datasets:[{
+        label:c.label,
+        data:c.data,
+        backgroundColor:isDoughnut||isRadar?(Array.isArray(c.color)?c.color:'rgba(255,215,0,0.2)'):c.color+'cc',
+        borderColor:isDoughnut?(Array.isArray(c.color)?c.color:c.color):c.color,
+        borderWidth:isDoughnut?2:1,
+        tension:0.4,
+        pointBackgroundColor:c.color,
+        pointBorderColor:'#fff',
+        pointRadius:isRadar?4:0
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#e0e0e0',font:{size:11}}},
+        tooltip:{backgroundColor:'rgba(5,5,20,0.95)',borderColor:c.color,borderWidth:1,titleColor:c.color,bodyColor:'#e0e0e0'}
+      },
+      scales:isDoughnut?{}:isRadar?{
+        r:{
+          grid:{color:'rgba(255,255,255,0.1)'},
+          angleLines:{color:'rgba(255,255,255,0.1)'},
+          pointLabels:{color:'#e0e0e0',font:{size:10}},
+          ticks:{display:false,backdropColor:'transparent'}
+        }
+      }:{
+        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#8892a8',font:{size:10}}},
+        x:{grid:{display:false},ticks:{color:'#8892a8',font:{size:10}}}
+      }
+    }
+  });
+}
+
+// ============ EASTER EGG ============
+map.on('click',function(e){
+  if(e.latlng.lat > 70){
+    L.popup().setLatLng(e.latlng)
+      .setContent('<div style="text-align:center;padding:10px;color:#ffd700;font-family:Space Grotesk;"><b>⛏️ TABOUKA</b><br><small>Developed by Harouna Diallo</small><br><small>Pour le Mali 🇲🇱</small></div>')
+      .openOn(map);
+  }
+});
+
+// ============ INITIALISATION ============
+applyTheme('or');
+data.or.forEach(item=>{
+  L.marker([item.lat,item.lng],{icon:icons.or})
+    .bindPopup(`<b>${item.n}</b><br>${item.d}`)
+    .addTo(resourceLayer);
+});
+document.getElementById('menuToggle').addEventListener('click',toggleSidebar);
+document.getElementById('sidebarBackdrop').addEventListener('click',closeSidebar);
+document.addEventListener('keydown',function(e){
+  if(e.key === 'Escape'){
+    document.querySelectorAll('.window').forEach(w=>w.style.display='none');
+    closeSidebar();
+  }
+});
+console.log('⛏️ TABOUKA v2 opérationnel');
+</script>
+</body>
+</html>
